@@ -1,0 +1,1 @@
+CREATE TABLE stock_operation (operation_id UUID PRIMARY KEY, product_id UUID NOT NULL, quantity INTEGER NOT NULL CHECK(quantity>0), direction VARCHAR(12) NOT NULL CHECK(direction IN ('DECREMENT','INCREMENT')), result_stock INTEGER NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP);

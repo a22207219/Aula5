@@ -1,0 +1,111 @@
+services:
+  order-service:
+    build:
+      context: .
+      dockerfile: order-service/Dockerfile
+    ports:
+    - 8083:8083
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://store-db:5432/order_db
+      SPRING_DATASOURCE_USERNAME: ${ORDER_DB_USER}
+      SPRING_DATASOURCE_PASSWORD: ${ORDER_DB_PASSWORD}
+      PRODUCT_SERVICE_URL: http://product-service:8081
+      SUPPLIER_SERVICE_URL: http://supplier-service:8082
+    depends_on:
+      store-db:
+        condition: service_healthy
+      product-service:
+        condition: service_healthy
+      supplier-service:
+        condition: service_healthy
+    networks:
+    - store-network
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - curl -fsS http://localhost:8083/actuator/health | grep -q '"status":"UP"'
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+  product-service:
+    build:
+      context: .
+      dockerfile: product-service/Dockerfile
+    container_name: product-service
+    ports:
+    - 8081:8081
+    environment:
+      SERVER_PORT: 8081
+      SPRING_DATASOURCE_URL: jdbc:postgresql://store-db:5432/product_db
+      SPRING_DATASOURCE_USERNAME: ${PRODUCT_DB_USER}
+      SPRING_DATASOURCE_PASSWORD: ${PRODUCT_DB_PASSWORD}
+      SUPPLIER_SERVICE_URL: http://supplier-service:8082
+    depends_on:
+      store-db:
+        condition: service_healthy
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - curl -fsS http://localhost:8081/actuator/health | grep -q '"status":"UP"'
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    networks:
+    - store-network
+  supplier-service:
+    build:
+      context: .
+      dockerfile: supplier-service/Dockerfile
+    container_name: supplier-service
+    ports:
+    - 8082:8082
+    environment:
+      SERVER_PORT: 8082
+      SPRING_DATASOURCE_URL: jdbc:postgresql://store-db:5432/supplier_db
+      SPRING_DATASOURCE_USERNAME: ${SUPPLIER_DB_USER}
+      SPRING_DATASOURCE_PASSWORD: ${SUPPLIER_DB_PASSWORD}
+      PRODUCT_SERVICE_URL: http://product-service:8081
+    depends_on:
+      store-db:
+        condition: service_healthy
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - curl -fsS http://localhost:8082/actuator/health | grep -q '"status":"UP"'
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    networks:
+    - store-network
+  store-db:
+    image: postgres:18
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_ADMIN_PASSWORD}
+      PRODUCT_DB_USER: ${PRODUCT_DB_USER}
+      PRODUCT_DB_PASSWORD: ${PRODUCT_DB_PASSWORD}
+      SUPPLIER_DB_USER: ${SUPPLIER_DB_USER}
+      SUPPLIER_DB_PASSWORD: ${SUPPLIER_DB_PASSWORD}
+      ORDER_DB_USER: ${ORDER_DB_USER}
+      ORDER_DB_PASSWORD: ${ORDER_DB_PASSWORD}
+    volumes:
+    - store_db_data:/var/lib/postgresql
+    - ./scripts/init-databases.sh:/docker-entrypoint-initdb.d/01-init-databases.sh:ro
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - pg_isready -U postgres -d postgres
+      interval: 5s
+      timeout: 5s
+      retries: 15
+    networks:
+    - store-network
+networks:
+  store-network:
+    external: true
+volumes:
+  store_db_data: null

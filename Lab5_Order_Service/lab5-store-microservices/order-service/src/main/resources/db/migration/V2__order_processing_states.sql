@@ -1,0 +1,1 @@
+-- CONFIRMING and CANCELLING persist in the existing VARCHAR status column; no DDL change required.
